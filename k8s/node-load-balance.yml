@@ -1,0 +1,62 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: lb-app-config
+data:
+  MONGO_URL: mongodb://mongo:27017
+  MONGO_DB: demo
+  REDIS_URL: redis://redis:6379
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: node-lb-app
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: node-lb-app
+  template:
+    metadata:
+      labels:
+        app: node-lb-app
+    spec:
+      containers:
+        - name: node-server
+          image: node-server:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8081
+          env:
+            - name: APP_NAME
+              value: node-lb-app
+            - name: PORT
+              value: "8081"
+            - name: MONGO_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: lb-app-config
+                  key: MONGO_URL
+            - name: MONGO_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: lb-app-config
+                  key: MONGO_DB
+            - name: REDIS_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: lb-app-config
+                  key: REDIS_URL
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: node-lb-app
+spec:
+  selector:
+    app: node-lb-app
+  type: NodePort
+  ports:
+    - port: 8081
+      targetPort: 8081
+      nodePort: 30091
